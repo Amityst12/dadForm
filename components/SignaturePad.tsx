@@ -63,6 +63,24 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(({ className = '' }, 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0) return;
+      const targetW = Math.round(rect.width * dpr);
+      const targetH = Math.round(rect.height * dpr);
+      if (canvas.width === targetW && canvas.height === targetH) return;
+      const prev = canvas.toDataURL();
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const img = new Image();
+      img.onload = () => canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      if (hasDrawn.current) img.src = prev;
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+
     canvas.addEventListener('mousedown', startDraw);
     canvas.addEventListener('mousemove', draw);
     canvas.addEventListener('mouseup', stopDraw);
@@ -72,6 +90,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(({ className = '' }, 
     canvas.addEventListener('touchend', stopDraw);
 
     return () => {
+      ro.disconnect();
       canvas.removeEventListener('mousedown', startDraw);
       canvas.removeEventListener('mousemove', draw);
       canvas.removeEventListener('mouseup', stopDraw);
@@ -96,10 +115,8 @@ const SignaturePad = forwardRef<SignaturePadHandle, Props>(({ className = '' }, 
   return (
     <canvas
       ref={canvasRef}
-      width={400}
-      height={130}
-      className={`cursor-crosshair touch-none border border-gray-300 rounded-md bg-[#fafafa] w-full ${className}`}
-      style={{ maxHeight: 130 }}
+      className={`cursor-crosshair touch-none border border-gray-300 rounded-md bg-[#fafafa] w-full block ${className}`}
+      style={{ height: 'clamp(120px, 22vw, 160px)' }}
     />
   );
 });

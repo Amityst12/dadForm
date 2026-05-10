@@ -179,18 +179,18 @@ export default function ConsentForm() {
     <div className="min-h-screen bg-[#e8ecf3]">
 
       {/* ══ HEADER ══ */}
-      <header className="sticky top-0 z-50 no-print" style={{ background: '#1e3264' }}>
-        <div className="flex items-center justify-between px-4 py-3 max-w-3xl mx-auto">
-          <div className="text-white text-right">
-            <div className="font-bold text-sm sm:text-base leading-tight">
+      <header className="sticky top-0 z-50 no-print" style={{ background: '#1e3264', paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 max-w-3xl mx-auto gap-3">
+          <div className="text-white text-right min-w-0 flex-1">
+            <div className="font-bold text-[13px] sm:text-base leading-tight truncate">
               הסכמת בעל הרשאה לחיפוש בחומר מחשב
             </div>
-            <div className="text-xs text-blue-200 mt-0.5">
+            <div className="text-[11px] sm:text-xs text-blue-200 mt-0.5">
               משטרת ישראל | נספח ט׳
             </div>
           </div>
           <div
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-2xl shrink-0"
+            className="w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xl sm:text-2xl shrink-0"
             style={{ background: 'rgba(255,255,255,0.15)' }}
           >
             ✡
@@ -199,37 +199,37 @@ export default function ConsentForm() {
       </header>
 
       {/* ══ TOP-BAR ══ */}
-      <div className="top-bar sticky top-[68px] z-40 border-b border-gray-300 no-print" style={{ background: '#f7f8fa' }}>
-        <div className="max-w-3xl mx-auto px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          <div className="flex items-center gap-2 min-w-[130px]">
-            <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">מס׳ פל״א</label>
+      <div className="top-bar border-b border-gray-300 no-print" style={{ background: '#f7f8fa' }}>
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-2 grid grid-cols-2 sm:flex sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-x-4 sm:gap-y-2 text-sm">
+          <div className="flex items-center gap-2 min-w-0">
+            <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">פל״א</label>
             <input
-              className="form-input !py-1 !text-sm w-24 text-center"
+              className="form-input !py-1.5 !text-sm flex-1 sm:w-24 sm:flex-none text-center min-w-0"
               value={form.plaNum}
               onChange={(e) => set('plaNum', e.target.value)}
               placeholder="—"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">שם היחידה</label>
-            <span className="text-sm font-bold text-navy bg-blue-50 border border-blue-200 rounded px-2 py-1">
-              תחנת בת ים
-            </span>
-          </div>
-          <div className="flex items-center gap-2 mr-auto">
+          <div className="flex items-center gap-2 min-w-0">
             <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">תאריך</label>
             <input
               type="date"
-              className="form-input !py-1 !text-sm w-36"
+              className="form-input !py-1.5 !text-sm flex-1 sm:w-36 sm:flex-none min-w-0"
               value={form.docDate}
               onChange={(e) => set('docDate', e.target.value)}
             />
+          </div>
+          <div className="col-span-2 sm:col-auto flex items-center gap-2 sm:mr-auto">
+            <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">יחידה</label>
+            <span className="text-xs sm:text-sm font-bold text-navy bg-blue-50 border border-blue-200 rounded px-2 py-1">
+              תחנת בת ים
+            </span>
           </div>
         </div>
       </div>
 
       {/* ══ FORM BODY ══ */}
-      <main className="page-container max-w-3xl mx-auto px-3 sm:px-4 py-5">
+      <main className="page-container max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-5">
 
         {/* ── Section 1 ── */}
         <SectionCard num={1} title="בעל ההרשאה">
@@ -473,7 +473,7 @@ export default function ConsentForm() {
                 נקה חתימה
               </button>
             </div>
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-40 space-y-1">
               <label className="form-label">תאריך</label>
               <input
                 type="date"
@@ -489,11 +489,11 @@ export default function ConsentForm() {
         </SectionCard>
 
         {/* ══ ACTION BUTTONS ══ */}
-        <div className="no-print flex flex-wrap justify-center gap-3 mt-6 mb-8">
+        <div className="no-print grid grid-cols-1 sm:flex sm:flex-wrap sm:justify-center gap-2.5 sm:gap-3 mt-6 mb-6 sm:mb-8 safe-bottom">
           <button
             type="button"
             onClick={handlePrint}
-            className="btn-action text-white"
+            className="btn-action text-white w-full sm:w-auto"
             style={{ background: '#2e7d32' }}
           >
             <span>🖨️</span>
@@ -502,7 +502,7 @@ export default function ConsentForm() {
           <button
             type="button"
             onClick={handleSaveHTML}
-            className="btn-action text-white"
+            className="btn-action text-white w-full sm:w-auto"
             style={{ background: '#7b4f00' }}
           >
             <span>💾</span>
@@ -511,7 +511,7 @@ export default function ConsentForm() {
           <button
             type="button"
             onClick={resetForm}
-            className="btn-action text-white"
+            className="btn-action text-white w-full sm:w-auto"
             style={{ background: '#607d8b' }}
           >
             <span>🗑️</span>

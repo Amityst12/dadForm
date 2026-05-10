@@ -18,12 +18,12 @@ body {
 
 /* ── Section card ── */
 .section-card {
-  @apply bg-white rounded-md shadow-sm border border-gray-200 mb-4 overflow-hidden;
+  @apply bg-white rounded-md shadow-sm border border-gray-200 mb-3 sm:mb-4 overflow-hidden;
   border-right: 4px solid #1e3264;
 }
 
 .section-header {
-  @apply flex items-center gap-2 px-4 py-2 bg-[#eef1f7] border-b border-gray-200;
+  @apply flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#eef1f7] border-b border-gray-200;
 }
 
 .section-badge {
@@ -32,12 +32,13 @@ body {
 }
 
 .section-body {
-  @apply px-4 py-3;
+  @apply px-3 sm:px-4 py-3;
 }
 
 /* ── Form inputs ── */
+/* Use 16px on mobile to prevent iOS Safari zoom-on-focus, sm:text-sm on tablets+ */
 .form-input {
-  @apply w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy focus:border-transparent bg-white;
+  @apply w-full border border-gray-300 rounded-md px-3 py-2.5 sm:py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-navy focus:border-transparent bg-white;
 }
 
 .form-label {
@@ -46,15 +47,18 @@ body {
 
 /* ── Legal text ── */
 .legal-text {
-  @apply text-sm text-gray-700 leading-7;
+  @apply text-[15px] sm:text-sm text-gray-700 leading-relaxed sm:leading-7;
 }
 
 /* ── Action buttons ── */
 .btn-action {
-  @apply flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold
-         transition-all active:scale-95 shadow-sm;
+  @apply flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 rounded-lg text-sm font-bold
+         min-h-[44px] transition-all active:scale-95 shadow-sm;
 }
 .btn-action:hover { filter: brightness(0.88); }
+
+/* ── Safe-area for iOS home indicator ── */
+.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 1rem); }
 
 /* ── Print styles ── */
 @media print {
