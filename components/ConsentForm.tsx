@@ -15,11 +15,31 @@ interface FormState {
   computerType: 'personal' | 'institutional' | '';
   presence: 'no-witnesses' | 'no-self' | '';
   remarks: string;
+  offenseType: string;
+  signLocation: string;
   sigDate: string;
   editorName: string;
   editorBadgeNum: string;
   sigEditorDate: string;
 }
+
+const emptyForm = (): FormState => ({
+  plaNum: '',
+  docDate: today(),
+  fullName: '',
+  idNum: '',
+  address: '',
+  devices: Array(2).fill(''),
+  computerType: '',
+  presence: '',
+  remarks: '',
+  offenseType: '',
+  signLocation: '',
+  sigDate: today(),
+  editorName: '',
+  editorBadgeNum: '',
+  sigEditorDate: today(),
+});
 
 function SectionCard({
   num,
@@ -70,21 +90,7 @@ export default function ConsentForm() {
     editor: '',
   });
 
-  const [form, setForm] = useState<FormState>({
-    plaNum: '',
-    docDate: today(),
-    fullName: '',
-    idNum: '',
-    address: '',
-    devices: Array(8).fill(''),
-    computerType: '',
-    presence: '',
-    remarks: '',
-    sigDate: today(),
-    editorName: '',
-    editorBadgeNum: '',
-    sigEditorDate: today(),
-  });
+  const [form, setForm] = useState<FormState>(emptyForm);
 
   const set = useCallback(
     <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -101,36 +107,60 @@ export default function ConsentForm() {
 
   const resetForm = () => {
     if (!confirm('האם לאפס את כל הטופס?')) return;
-    setForm({
-      plaNum: '',
-      docDate: today(),
-      fullName: '',
-      idNum: '',
-      address: '',
-      devices: Array(8).fill(''),
-      computerType: '',
-      presence: '',
-      remarks: '',
-      sigDate: today(),
-      editorName: '',
-      editorBadgeNum: '',
-      sigEditorDate: today(),
-    });
+    setForm(emptyForm());
     sigRef.current?.clear();
     sigEditorRef.current?.clear();
     setPrintSigs({ owner: '', editor: '' });
   };
 
-  const handlePrint = () => {
+  const waitForImages = (root: HTMLElement) =>
+    Promise.all(
+      Array.from(root.querySelectorAll('img')).map((img) =>
+        img.complete && img.naturalWidth > 0
+          ? Promise.resolve()
+          : new Promise<void>((resolve) => {
+              img.onload = img.onerror = () => resolve();
+            })
+      )
+    );
+
+  const handlePrint = async () => {
     setPrintSigs({
       owner:  sigRef.current?.toDataURL()       ?? '',
       editor: sigEditorRef.current?.toDataURL() ?? '',
     });
-    setTimeout(() => window.print(), 60);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const summary = document.querySelector<HTMLElement>('.print-summary');
+    if (summary) await waitForImages(summary);
+    window.print();
   };
 
   const handleSaveHTML = () => {
-    const html = document.documentElement.outerHTML;
+    const ownerSig  = sigRef.current?.toDataURL()       ?? '';
+    const editorSig = sigEditorRef.current?.toDataURL() ?? '';
+
+    const clone = document.documentElement.cloneNode(true) as HTMLElement;
+
+    const liveCanvases   = Array.from(document.querySelectorAll('canvas'));
+    const clonedCanvases = Array.from(clone.querySelectorAll('canvas'));
+    clonedCanvases.forEach((c, i) => {
+      const live = liveCanvases[i];
+      if (!live) return;
+      const img = clone.ownerDocument!.createElement('img');
+      img.src = live.toDataURL();
+      img.setAttribute('style', 'width:100%;max-height:130px;object-fit:contain;border:1px solid #d1d5db;border-radius:6px;background:#fafafa;');
+      c.replaceWith(img);
+    });
+
+    const sigs = [ownerSig, editorSig];
+    clone.querySelectorAll<HTMLImageElement>('.print-summary img').forEach((img, i) => {
+      if (sigs[i]) img.src = sigs[i];
+    });
+
+    const summary = clone.querySelector<HTMLElement>('.print-summary');
+    if (summary) summary.style.display = 'block';
+
+    const html = '<!DOCTYPE html>\n' + clone.outerHTML;
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -139,7 +169,7 @@ export default function ConsentForm() {
     URL.revokeObjectURL(a.href);
   };
 
-  const formatDate = (d: string) => {
+  const formatDateLocal = (d: string) => {
     if (!d) return '';
     const [y, m, day] = d.split('-');
     return `${day}/${m}/${y}`;
@@ -149,10 +179,7 @@ export default function ConsentForm() {
     <div className="min-h-screen bg-[#e8ecf3]">
 
       {/* ══ HEADER ══ */}
-      <header
-        className="sticky top-0 z-50 no-print"
-        style={{ background: '#1e3264' }}
-      >
+      <header className="sticky top-0 z-50 no-print" style={{ background: '#1e3264' }}>
         <div className="flex items-center justify-between px-4 py-3 max-w-3xl mx-auto">
           <div className="text-white text-right">
             <div className="font-bold text-sm sm:text-base leading-tight">
@@ -171,10 +198,9 @@ export default function ConsentForm() {
         </div>
       </header>
 
-      {/* ══ TOP-BAR (פל"א / תאריך / יחידה) ══ */}
+      {/* ══ TOP-BAR ══ */}
       <div className="top-bar sticky top-[68px] z-40 border-b border-gray-300 no-print" style={{ background: '#f7f8fa' }}>
         <div className="max-w-3xl mx-auto px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          {/* פל"א */}
           <div className="flex items-center gap-2 min-w-[130px]">
             <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">מס׳ פל״א</label>
             <input
@@ -184,14 +210,12 @@ export default function ConsentForm() {
               placeholder="—"
             />
           </div>
-          {/* שם היחידה */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">שם היחידה</label>
             <span className="text-sm font-bold text-navy bg-blue-50 border border-blue-200 rounded px-2 py-1">
               תחנת בת ים
             </span>
           </div>
-          {/* תאריך */}
           <div className="flex items-center gap-2 mr-auto">
             <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">תאריך</label>
             <input
@@ -204,26 +228,10 @@ export default function ConsentForm() {
         </div>
       </div>
 
-      {/* ══ PRINT HEADER (only in print) ══ */}
-      <div className="hidden print:block print:mb-4">
-        <div
-          className="flex items-center justify-between px-6 py-3"
-          style={{ background: '#1e3264' }}
-        >
-          <div className="text-white">
-            <div className="font-bold text-base">הסכמת בעל הרשאה לחיפוש בחומר מחשב — נספח ט׳</div>
-            <div className="text-xs mt-0.5">
-              פל״א: {form.plaNum || '—'} | יחידה: תחנת בת ים | תאריך: {formatDate(form.docDate)}
-            </div>
-          </div>
-          <div className="text-white text-3xl">✡</div>
-        </div>
-      </div>
-
       {/* ══ FORM BODY ══ */}
       <main className="page-container max-w-3xl mx-auto px-3 sm:px-4 py-5">
 
-        {/* ── Section 1: Personal details ── */}
+        {/* ── Section 1 ── */}
         <SectionCard num={1} title="בעל ההרשאה">
           <FieldRow>
             <Field label="שם מלא">
@@ -255,13 +263,22 @@ export default function ConsentForm() {
               />
             </Field>
           </div>
+          <div className="mt-3">
+            <Field label="סוג העבירה / נושא החקירה (אופציונלי)">
+              <input
+                className="form-input"
+                value={form.offenseType}
+                onChange={(e) => set('offenseType', e.target.value)}
+                placeholder="לדוגמה: עבירות מחשב, הונאה ברשת..."
+              />
+            </Field>
+          </div>
           <p className="legal-text mt-4 mb-3">
             מאשר בזאת למשטרת ישראל לחדור ולבצע חיפוש במחשב/חומר מחשב{' '}
             <em>(מחק המיותר)</em> שבשימושי, וזאת לצורך החקירה (פירוט המחשבים,
             חומרי המחשב והחשבונות בעניינים ניתנה ההסכמה בכל מקום בו הם נמצאים,
             לרבות מחוץ לישראל):
           </p>
-          {/* Device grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 border border-gray-300 rounded-md overflow-hidden">
             {[0, 1].map((i) => (
               <div key={i} className="flex items-center gap-2 border border-gray-200 px-2 py-1">
@@ -277,7 +294,7 @@ export default function ConsentForm() {
           </div>
         </SectionCard>
 
-        {/* ── Section 2: Computer type ── */}
+        {/* ── Section 2 ── */}
         <SectionCard num={2} title="הסכמת בעל ההרשאה במחשב">
           <div className="space-y-3">
             <label
@@ -325,27 +342,10 @@ export default function ConsentForm() {
           </div>
         </SectionCard>
 
-        {/* ── Sections 3–6: Legal declarations (fixed text) ── */}
+        {/* ── Sections 3–6 ── */}
         <SectionCard num="3–6" title="הצהרות שהובהרו לבעל ההרשאה">
           <div className="space-y-3">
-            {[
-              {
-                n: 3,
-                text: 'הובהרה לי זכותי שלא להסכים לחיפוש במחשב בלא צו שיפוטי, או להסכים לחיפוש מחומרי המחשב בלבד, עצם הסירוב לא ייקרא לחובתי. כן הובהר לי כי אני רשאי לחזור בי מהסכמתי לחיפוש בכל עת ו/או להגבילו, וכי אין בחזרה מהסכמה כדי לפגוע בחוקיות הפעולות שנעשו עד לחזרה מהסכמה.',
-              },
-              {
-                n: 4,
-                text: 'הובהר לי כי החיפוש במחשב הינו בכלל החומר שנוצר או קיים במחשב או שנמנה לעיל, ובחומרי המחשב שנמנה לעיל, וכי משטרת ישראל עשויה להשתמש בכל אמצעי טכנולוגי שברשותה במהלך החיפוש.',
-              },
-              {
-                n: 5,
-                text: 'במקרה של הרשאה לחיפוש בחלק מחומרי המחשב: הובהר לי כי בשל מגבלות טכנולוגיות וצרכי החקירה, כלל חומרי המחשב יועתקו וייישמרו על-ידי המשטרה בנפרד מתיק החקירה, אולם הצפייה תהא רק בקבצים, בתיקיות או בסוגי הקבצים אליהם אני מרשה לעיין כמפורט לעיל בסעיף 1. למשטרת ישראל שמורה הזכות לפנות לבית-המשפט להתיר את העיון בקבצים נוספים, בהתאם להתקדמות החקירה.',
-              },
-              {
-                n: 6,
-                text: 'הובהרה לי זכותי שהחיפוש יתבצע בנוכחותי ובפני שני עדים בגירים שאינם שוטרים.',
-              },
-            ].map(({ n, text }) => (
+            {LEGAL.map(({ n, text }) => (
               <div key={n} className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-navy/10 text-navy text-xs font-bold flex items-center justify-center mt-0.5">
                   {n}
@@ -356,11 +356,10 @@ export default function ConsentForm() {
           </div>
         </SectionCard>
 
-        {/* ── Section 7: Presence ── */}
+        {/* ── Section 7 ── */}
         <SectionCard num={7} title="נוכחות">
           <p className="legal-text mb-3">
-            הנני מאשר למשטרה כי החיפוש במחשב ייערך{' '}
-            <em>(סמן X באחת המתאימה):</em>
+            הנני מאשר למשטרה כי החיפוש במחשב ייערך <em>(סמן באחת המתאימה):</em>
           </p>
           <div className="space-y-2">
             {[
@@ -389,7 +388,7 @@ export default function ConsentForm() {
           </div>
         </SectionCard>
 
-        {/* ── Section 8: Remarks ── */}
+        {/* ── Section 8 ── */}
         <SectionCard num={8} title="הערות בעל ההרשאה לחומר המחשב">
           <textarea
             className="form-input resize-y min-h-[80px]"
@@ -399,7 +398,7 @@ export default function ConsentForm() {
           />
         </SectionCard>
 
-        {/* ── Signature section ── */}
+        {/* ── Owner signature ── */}
         <SectionCard num="✍" title="חתימת בעל ההרשאה">
           <div className="flex flex-col sm:flex-row gap-4 items-start">
             <div className="flex-1 w-full">
@@ -413,22 +412,33 @@ export default function ConsentForm() {
                 נקה חתימה
               </button>
             </div>
-            <div className="w-full sm:w-40">
-              <label className="form-label">תאריך</label>
-              <input
-                type="date"
-                className="form-input"
-                value={form.sigDate}
-                onChange={(e) => set('sigDate', e.target.value)}
-              />
-              <div className="mt-2 text-center text-sm font-medium text-navy">
-                {formatDate(form.sigDate)}
+            <div className="w-full sm:w-44 space-y-3">
+              <div>
+                <label className="form-label">תאריך</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={form.sigDate}
+                  onChange={(e) => set('sigDate', e.target.value)}
+                />
+                <div className="mt-1 text-center text-sm font-medium text-navy">
+                  {formatDateLocal(form.sigDate)}
+                </div>
+              </div>
+              <div>
+                <label className="form-label">מקום החתימה (אופציונלי)</label>
+                <input
+                  className="form-input"
+                  value={form.signLocation}
+                  onChange={(e) => set('signLocation', e.target.value)}
+                  placeholder="עיר / מקום"
+                />
               </div>
             </div>
           </div>
         </SectionCard>
 
-        {/* ── Editor signature section ── */}
+        {/* ── Editor signature ── */}
         <SectionCard num="✍" title="חתימת עורך המסמך">
           <div className="flex flex-col sm:flex-row gap-4 items-start">
             <div className="flex-1 w-full">
@@ -472,7 +482,7 @@ export default function ConsentForm() {
                 onChange={(e) => set('sigEditorDate', e.target.value)}
               />
               <div className="mt-2 text-center text-sm font-medium text-navy">
-                {formatDate(form.sigEditorDate)}
+                {formatDateLocal(form.sigEditorDate)}
               </div>
             </div>
           </div>
@@ -510,7 +520,8 @@ export default function ConsentForm() {
         </div>
 
       </main>
-      {/* ══ PRINT SUMMARY — shown only on print ══ */}
+
+      {/* ══ PRINT SUMMARY ══ */}
       <PrintSummary form={form} printSigs={printSigs} />
 
     </div>
@@ -528,6 +539,12 @@ const LEGAL: { n: number; text: string }[] = [
   { n: 6, text: 'הובהרה לי זכותי שהחיפוש יתבצע בנוכחותי ובפני שני עדים בגירים שאינם שוטרים.' },
 ];
 
+const fmt = (d: string) => {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+};
+
 function PrintSummary({
   form,
   printSigs,
@@ -536,160 +553,367 @@ function PrintSummary({
   printSigs: { owner: string; editor: string };
 }) {
   const filledDevices = form.devices.filter(Boolean);
-  const presenceLabel =
-    form.presence === 'no-witnesses' ? 'ללא נוכחות עדים' :
-    form.presence === 'no-self'      ? 'ללא נוכחותי'     : '—';
-  const computerLabel =
-    form.computerType === 'personal'     ? 'מחשב פרטי' :
-    form.computerType === 'institutional'? 'מחשב מוסדי' : '—';
 
-  const S: React.CSSProperties = {
-    fontFamily: 'Arial, David, sans-serif',
+  const navy      = '#1e3264';
+  const navyDark  = '#0f1d3d';
+  const ink       = '#1a1a1a';
+  const muted     = '#6b7280';
+  const ruleColor = '#d4d8e0';
+
+  const root: React.CSSProperties = {
+    fontFamily: '"Times New Roman", "David", "Frank Ruehl CLM", serif',
     direction: 'rtl',
-    fontSize: '8.5pt',
-    lineHeight: 1.45,
-    color: '#111',
+    fontSize: '10pt',
+    lineHeight: 1.55,
+    color: ink,
+    background: '#fff',
+    maxWidth: '190mm',
+    margin: '0 auto',
   };
-  const navy = '#1e3264';
-  const borderLight = '1px solid #bbb';
-  const cell: React.CSSProperties = {
-    padding: '3px 6px',
-    borderBottom: borderLight,
-  };
+
   const sectionTitle: React.CSSProperties = {
-    background: '#eef1f7',
-    fontWeight: 'bold',
-    fontSize: '8pt',
-    padding: '3px 6px',
-    borderBottom: borderLight,
-    borderTop: borderLight,
+    fontFamily: 'Arial, "David", sans-serif',
+    fontWeight: 700,
+    fontSize: '10pt',
+    color: navyDark,
+    padding: '0 0 3px',
+    borderBottom: `1px solid ${navy}`,
+    marginBottom: 7,
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 6,
+  };
+
+  const sectionNum: React.CSSProperties = {
+    fontFamily: 'Arial, sans-serif',
+    fontWeight: 700,
+    fontSize: '10pt',
     color: navy,
+    minWidth: 24,
+  };
+
+  const fieldLabel: React.CSSProperties = {
+    fontFamily: 'Arial, sans-serif',
+    fontSize: '7.5pt',
+    color: muted,
+    fontWeight: 700,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase' as const,
+    marginBottom: 1,
+  };
+
+  const fieldValue: React.CSSProperties = {
+    fontSize: '10pt',
+    color: ink,
+    borderBottom: `1px solid ${ruleColor}`,
+    paddingBottom: 2,
+    minHeight: 16,
+  };
+
+  const declarationText: React.CSSProperties = {
+    fontSize: '9pt',
+    lineHeight: 1.6,
+    textAlign: 'justify' as const,
+    color: '#222',
+  };
+
+  const checkbox = (checked: boolean): React.CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 13,
+    height: 13,
+    border: `1.5px solid ${navy}`,
+    fontSize: '11pt',
+    fontWeight: 700,
+    color: navy,
+    lineHeight: 1,
+    flexShrink: 0,
+    marginInlineEnd: 6,
+    background: checked ? '#eef1f7' : '#fff',
+  });
+
+  const checkboxRow: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
   };
 
   return (
-    <div
-      className="print-summary"
-      style={{ ...S, display: 'none' }}
-    >
+    <div className="print-summary" style={{ ...root, display: 'none' }}>
       {/* ── Header ── */}
-      <div style={{ background: navy, color: '#fff', padding: '6px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <div>
-          <div style={{ fontWeight: 'bold', fontSize: '11pt' }}>הסכמת בעל הרשאה לחיפוש בחומר מחשב — נספח ט׳</div>
-          <div style={{ fontSize: '8pt', opacity: 0.85 }}>משטרת ישראל | תחנת בת ים</div>
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, paddingBottom: 8 }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: '50%',
+            background: navyDark, color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '26pt', lineHeight: 1, flexShrink: 0,
+          }}>
+            ✡
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '8.5pt', color: muted, letterSpacing: '0.2em', fontWeight: 700 }}>
+              מדינת ישראל · משטרת ישראל
+            </div>
+            <div style={{ fontFamily: '"Times New Roman", "David", serif', fontSize: '17pt', fontWeight: 700, color: navyDark, marginTop: 3 }}>
+              הסכמת בעל הרשאה לחיפוש בחומר מחשב
+            </div>
+            <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '9pt', color: navy, marginTop: 2, fontWeight: 600, letterSpacing: '0.06em' }}>
+              נספח ט׳
+            </div>
+          </div>
         </div>
-        <div style={{ fontSize: '22pt', lineHeight: 1 }}>✡</div>
+        <div style={{ borderTop: `2px solid ${navy}`, borderBottom: `1px solid ${navy}`, height: 3, marginBottom: 6 }} />
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '8.5pt',
+          color: navyDark,
+        }}>
+          <span><span style={{ color: muted, fontWeight: 700 }}>יחידה:</span> <strong>תחנת בת ים</strong></span>
+          <span><span style={{ color: muted, fontWeight: 700 }}>מס׳ פל״א:</span> <strong>{form.plaNum || '—'}</strong></span>
+          <span><span style={{ color: muted, fontWeight: 700 }}>תאריך:</span> <strong>{fmt(form.docDate) || '—'}</strong></span>
+        </div>
       </div>
 
-      {/* ── Meta row ── */}
-      <div style={{ display: 'flex', gap: 16, border: borderLight, borderRadius: 3, padding: '4px 8px', marginBottom: 6, background: '#f7f8fa' }}>
-        <span><strong>מס׳ פל״א:</strong> {form.plaNum || '—'}</span>
-        <span><strong>יחידה:</strong> תחנת בת ים</span>
-        <span><strong>תאריך:</strong> {formatDate(form.docDate)}</span>
-      </div>
+      {/* ── Section 1 ── */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={sectionTitle}>
+          <span style={sectionNum}>1.</span>
+          <span>פרטי בעל ההרשאה</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 6 }}>
+          <div>
+            <div style={fieldLabel}>שם מלא</div>
+            <div style={fieldValue}>{form.fullName || ' '}</div>
+          </div>
+          <div>
+            <div style={fieldLabel}>מספר זהות</div>
+            <div style={{ ...fieldValue, fontFamily: '"Courier New", monospace', letterSpacing: '0.1em' }}>{form.idNum || ' '}</div>
+          </div>
+        </div>
+        <div>
+          <div style={fieldLabel}>כתובת מגורים</div>
+          <div style={fieldValue}>{form.address || ' '}</div>
+        </div>
+        {form.offenseType && (
+          <div style={{ marginTop: 6 }}>
+            <div style={fieldLabel}>סוג העבירה / נושא החקירה</div>
+            <div style={fieldValue}>{form.offenseType}</div>
+          </div>
+        )}
 
-      {/* ── Two-column top ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 6 }}>
+        <p style={{ ...declarationText, marginTop: 9, marginBottom: 6 }}>
+          מאשר/ת בזאת למשטרת ישראל לחדור ולבצע חיפוש במחשב/חומר מחשב שבשימושי, וזאת לצורך החקירה. פירוט המחשבים וחומרי המחשב שבעניינם ניתנת ההסכמה — בכל מקום בו הם נמצאים, לרבות מחוץ לישראל:
+        </p>
 
-        {/* Left: personal + devices */}
-        <div style={{ border: borderLight, borderRadius: 3, overflow: 'hidden', borderRight: `3px solid ${navy}` }}>
-          <div style={sectionTitle}>1 — בעל ההרשאה</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        {filledDevices.length > 0 ? (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt', border: `1px solid ${ruleColor}` }}>
+            <thead>
+              <tr style={{ background: '#f4f6fb' }}>
+                <th style={{ width: 30, padding: '4px 6px', borderBottom: `1px solid ${ruleColor}`, borderLeft: `1px solid ${ruleColor}`, textAlign: 'center', fontFamily: 'Arial, sans-serif', fontSize: '8pt', color: navy }}>#</th>
+                <th style={{ padding: '4px 8px', borderBottom: `1px solid ${ruleColor}`, textAlign: 'right', fontFamily: 'Arial, sans-serif', fontSize: '8pt', color: navy }}>תיאור ההתקן / חומר המחשב</th>
+              </tr>
+            </thead>
             <tbody>
-              <tr><td style={cell}><strong>שם מלא:</strong></td><td style={cell}>{form.fullName || '—'}</td></tr>
-              <tr><td style={cell}><strong>מספר זהות:</strong></td><td style={cell}>{form.idNum || '—'}</td></tr>
-              <tr><td style={cell}><strong>כתובת:</strong></td><td style={cell}>{form.address || '—'}</td></tr>
+              {filledDevices.map((d, i) => (
+                <tr key={i}>
+                  <td style={{ padding: '4px 6px', borderBottom: `1px solid ${ruleColor}`, borderLeft: `1px solid ${ruleColor}`, textAlign: 'center', color: muted, fontFamily: 'Arial, sans-serif' }}>{i + 1}</td>
+                  <td style={{ padding: '4px 8px', borderBottom: `1px solid ${ruleColor}` }}>{d}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
-          {filledDevices.length > 0 && (
-            <>
-              <div style={{ ...sectionTitle, fontSize: '7.5pt' }}>התקנים / חומר מחשב</div>
-              <div style={{ padding: '3px 6px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px 8px' }}>
-                {filledDevices.map((d, i) => (
-                  <div key={i} style={{ fontSize: '7.5pt' }}>{i + 1}. {d}</div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Right: selections */}
-        <div style={{ border: borderLight, borderRadius: 3, overflow: 'hidden', borderRight: `3px solid ${navy}` }}>
-          <div style={sectionTitle}>2 — סוג מחשב</div>
-          <div style={{ padding: '4px 8px' }}>
-            <span style={{ background: navy, color: '#fff', borderRadius: 3, padding: '1px 6px', fontSize: '8pt' }}>
-              {computerLabel}
-            </span>
-            {form.computerType === 'personal' && (
-              <p style={{ marginTop: 4, fontSize: '7.5pt', color: '#444' }}>הנני מצהיר כי המחשב הוא מחשבי הפרטי, ואני מורשה גישה ושימוש במחשב.</p>
-            )}
-            {form.computerType === 'institutional' && (
-              <p style={{ marginTop: 4, fontSize: '7.5pt', color: '#444' }}>הנני מצהיר כי המחשב הוא מחשב מוסדי, ואני מורשה גישה ושימוש במחשב.</p>
-            )}
-          </div>
-          <div style={sectionTitle}>7 — נוכחות</div>
-          <div style={{ padding: '4px 8px' }}>
-            <span style={{ background: navy, color: '#fff', borderRadius: 3, padding: '1px 6px', fontSize: '8pt' }}>
-              {presenceLabel}
-            </span>
-          </div>
-          {form.remarks && (
-            <>
-              <div style={sectionTitle}>8 — הערות</div>
-              <div style={{ padding: '4px 8px', fontSize: '7.5pt' }}>{form.remarks}</div>
-            </>
-          )}
-        </div>
+        ) : (
+          <div style={{ fontSize: '8.5pt', color: muted, fontStyle: 'italic', padding: '4px 0' }}>לא צוינו התקנים.</div>
+        )}
       </div>
 
-      {/* ── Legal declarations 3–6 ── */}
-      <div style={{ border: borderLight, borderRadius: 3, overflow: 'hidden', borderRight: `3px solid ${navy}`, marginBottom: 6 }}>
-        <div style={sectionTitle}>3–6 — הצהרות שהובהרו לבעל ההרשאה</div>
-        <div style={{ padding: '4px 8px' }}>
+      {/* ── Section 2 ── */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={sectionTitle}>
+          <span style={sectionNum}>2.</span>
+          <span>סוג המחשב</span>
+        </div>
+        <div style={{ display: 'flex', gap: 28, fontSize: '10pt' }}>
+          <span style={checkboxRow}>
+            <span style={checkbox(form.computerType === 'personal')}>{form.computerType === 'personal' ? '✓' : ''}</span>
+            <span style={{ fontWeight: form.computerType === 'personal' ? 700 : 400 }}>מחשב פרטי</span>
+          </span>
+          <span style={checkboxRow}>
+            <span style={checkbox(form.computerType === 'institutional')}>{form.computerType === 'institutional' ? '✓' : ''}</span>
+            <span style={{ fontWeight: form.computerType === 'institutional' ? 700 : 400 }}>מחשב מוסדי</span>
+          </span>
+        </div>
+        {form.computerType && (
+          <p style={{ ...declarationText, marginTop: 6, fontSize: '8.5pt', color: '#444' }}>
+            הנני מצהיר/ה כי המחשב הוא {form.computerType === 'personal' ? 'מחשבי הפרטי' : 'מחשב מוסדי'}, ואני מורשה גישה ושימוש במחשב או בחלק המחשב שבו יתבצע החיפוש.
+          </p>
+        )}
+      </div>
+
+      {/* ── Sections 3–6 ── */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={sectionTitle}>
+          <span style={sectionNum}>3–6.</span>
+          <span>הצהרות שהובהרו לבעל ההרשאה</span>
+        </div>
+        <ol style={{ margin: 0, padding: 0, listStyle: 'none' }}>
           {LEGAL.map(({ n, text }) => (
-            <div key={n} style={{ display: 'flex', gap: 6, marginBottom: 3 }}>
-              <span style={{ minWidth: 16, fontWeight: 'bold', color: navy, fontSize: '7.5pt', marginTop: 1 }}>{n}.</span>
-              <span style={{ fontSize: '7.5pt' }}>{text}</span>
-            </div>
+            <li key={n} style={{ display: 'flex', gap: 8, marginBottom: 7, ...declarationText, breakInside: 'avoid' }}>
+              <span style={{
+                flexShrink: 0,
+                fontFamily: 'Arial, sans-serif',
+                fontWeight: 700,
+                color: navy,
+                fontSize: '9pt',
+                minWidth: 18,
+              }}>{n}.</span>
+              <span>{text}</span>
+            </li>
           ))}
+        </ol>
+      </div>
+
+      {/* ── Section 7 ── */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={sectionTitle}>
+          <span style={sectionNum}>7.</span>
+          <span>נוכחות</span>
+        </div>
+        <p style={{ ...declarationText, marginBottom: 5 }}>
+          הנני מאשר/ת למשטרה כי החיפוש במחשב ייערך:
+        </p>
+        <div style={{ display: 'flex', gap: 28, fontSize: '10pt' }}>
+          <span style={checkboxRow}>
+            <span style={checkbox(form.presence === 'no-witnesses')}>{form.presence === 'no-witnesses' ? '✓' : ''}</span>
+            <span style={{ fontWeight: form.presence === 'no-witnesses' ? 700 : 400 }}>ללא נוכחות עדים</span>
+          </span>
+          <span style={checkboxRow}>
+            <span style={checkbox(form.presence === 'no-self')}>{form.presence === 'no-self' ? '✓' : ''}</span>
+            <span style={{ fontWeight: form.presence === 'no-self' ? 700 : 400 }}>ללא נוכחותי</span>
+          </span>
         </div>
       </div>
+
+      {/* ── Section 8 ── */}
+      {form.remarks && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={sectionTitle}>
+            <span style={sectionNum}>8.</span>
+            <span>הערות בעל ההרשאה</span>
+          </div>
+          <div style={{
+            ...declarationText,
+            border: `1px solid ${ruleColor}`,
+            padding: '6px 8px',
+            background: '#fafbfd',
+            whiteSpace: 'pre-wrap' as const,
+          }}>
+            {form.remarks}
+          </div>
+        </div>
+      )}
 
       {/* ── Signatures ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, breakInside: 'avoid', pageBreakInside: 'avoid' }}>
         {/* Owner */}
-        <div style={{ border: borderLight, borderRadius: 3, overflow: 'hidden', borderRight: `3px solid ${navy}` }}>
-          <div style={sectionTitle}>חתימת בעל ההרשאה</div>
-          <div style={{ padding: '4px 8px' }}>
-            {printSigs.owner
-              ? <img src={printSigs.owner} alt="חתימה" style={{ width: '100%', height: 70, objectFit: 'contain', border: '1px solid #ddd', borderRadius: 3, background: '#fafafa' }} />
-              : <div style={{ height: 70, border: '1px dashed #aaa', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: '7pt' }}>ללא חתימה</div>
-            }
-            <div style={{ marginTop: 4, fontSize: '7.5pt' }}><strong>תאריך:</strong> {formatDate(form.sigDate)}</div>
+        <div style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+          <div style={sectionTitle}>
+            <span style={{ ...sectionNum, fontSize: '11pt' }}>✍</span>
+            <span>חתימת בעל ההרשאה</span>
+          </div>
+          <div style={{ marginBottom: 5 }}>
+            <div style={fieldLabel}>שם החותם</div>
+            <div style={fieldValue}>{form.fullName || ' '}</div>
+          </div>
+          <div style={{
+            border: `1px solid ${navy}`,
+            height: 110,
+            background: '#fff',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            {printSigs.owner ? (
+              <img src={printSigs.owner} alt="חתימה" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            ) : (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd2de', fontSize: '8pt', fontStyle: 'italic' }}>
+                — לחתימה —
+              </div>
+            )}
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: form.signLocation ? '1fr 1fr' : '1fr',
+            gap: 8, marginTop: 5,
+            fontFamily: 'Arial, sans-serif', fontSize: '8.5pt',
+          }}>
+            <span><span style={{ color: muted, fontWeight: 700 }}>תאריך:</span> {fmt(form.sigDate) || '—'}</span>
+            {form.signLocation && (
+              <span><span style={{ color: muted, fontWeight: 700 }}>מקום:</span> {form.signLocation}</span>
+            )}
           </div>
         </div>
 
         {/* Editor */}
-        <div style={{ border: borderLight, borderRadius: 3, overflow: 'hidden', borderRight: `3px solid ${navy}` }}>
-          <div style={sectionTitle}>חתימת עורך המסמך</div>
-          <div style={{ padding: '4px 8px' }}>
-            <div style={{ display: 'flex', gap: 12, marginBottom: 3, fontSize: '7.5pt' }}>
-              <span><strong>שם:</strong> {form.editorName || '—'}</span>
-              <span><strong>מא:</strong> {form.editorBadgeNum || '—'}</span>
-            </div>
-            {printSigs.editor
-              ? <img src={printSigs.editor} alt="חתימה" style={{ width: '100%', height: 70, objectFit: 'contain', border: '1px solid #ddd', borderRadius: 3, background: '#fafafa' }} />
-              : <div style={{ height: 70, border: '1px dashed #aaa', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: '7pt' }}>ללא חתימה</div>
-            }
-            <div style={{ marginTop: 4, fontSize: '7.5pt' }}><strong>תאריך:</strong> {formatDate(form.sigEditorDate)}</div>
+        <div style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+          <div style={sectionTitle}>
+            <span style={{ ...sectionNum, fontSize: '11pt' }}>✍</span>
+            <span>חתימת עורך המסמך</span>
           </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginBottom: 5 }}>
+            <div>
+              <div style={fieldLabel}>שם עורך המסמך</div>
+              <div style={fieldValue}>{form.editorName || ' '}</div>
+            </div>
+            <div>
+              <div style={fieldLabel}>מספר אישי</div>
+              <div style={{ ...fieldValue, fontFamily: '"Courier New", monospace', letterSpacing: '0.1em' }}>{form.editorBadgeNum || ' '}</div>
+            </div>
+          </div>
+          <div style={{
+            border: `1px solid ${navy}`,
+            height: 110,
+            background: '#fff',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            {printSigs.editor ? (
+              <img src={printSigs.editor} alt="חתימה" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            ) : (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd2de', fontSize: '8pt', fontStyle: 'italic' }}>
+                — לחתימה וחותמת —
+              </div>
+            )}
+          </div>
+          <div style={{ marginTop: 5, fontFamily: 'Arial, sans-serif', fontSize: '8.5pt' }}>
+            <span style={{ color: muted, fontWeight: 700 }}>תאריך:</span> {fmt(form.sigEditorDate) || '—'}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Footer ── */}
+      <div style={{
+        marginTop: 20,
+        paddingTop: 6,
+        borderTop: `1px solid ${navy}`,
+        fontFamily: 'Arial, sans-serif',
+        color: muted,
+      }}>
+        <div style={{ fontSize: '7pt', textAlign: 'center', fontStyle: 'italic', marginBottom: 4 }}>
+          מסמך זה מהווה הסכמה משפטית מודעת לחיפוש בחומר מחשב על-פי דין. נחתם מרצון חופשי ולאחר שהובהרו לחותם זכויותיו.
+        </div>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          fontSize: '7pt',
+          letterSpacing: '0.05em',
+        }}>
+          <span>משטרת ישראל · נספח ט׳</span>
+          <span>הופק דיגיטלית · {fmt(form.docDate) || '—'}</span>
         </div>
       </div>
     </div>
   );
-}
-
-function formatDate(d: string) {
-  if (!d) return '';
-  const [y, m, day] = d.split('-');
-  return `${day}/${m}/${y}`;
 }

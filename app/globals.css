@@ -60,18 +60,21 @@ body {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm 10mm;
+    margin: 14mm 14mm 12mm 14mm;
   }
 
-  /* hide everything except the print summary */
+  html, body { background: #fff !important; }
+
   body > * { display: none !important; }
-  body > div { display: block !important; }          /* re-show root div */
+  body > div { display: block !important; }
   header, .top-bar, main, .no-print { display: none !important; }
 
-  /* show the print summary */
-  .print-summary {
-    display: block !important;
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
+  .print-summary,
+  .print-summary * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
+
+  .print-summary { display: block !important; }
 }
