@@ -200,28 +200,31 @@ export default function ConsentForm() {
 
       {/* ══ TOP-BAR ══ */}
       <div className="top-bar border-b border-gray-300 no-print" style={{ background: '#f7f8fa' }}>
-        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-2 grid grid-cols-2 sm:flex sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-x-4 sm:gap-y-2 text-sm">
-          <div className="flex items-center gap-2 min-w-0">
-            <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">פל״א</label>
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-2 grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center gap-2 sm:gap-x-4 sm:gap-y-2 text-sm">
+          {/* פל״א */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
+            <label className="text-[11px] sm:text-xs font-semibold text-gray-500 whitespace-nowrap">מס׳ פל״א</label>
             <input
-              className="form-input !py-1.5 !text-sm flex-1 sm:w-24 sm:flex-none text-center min-w-0"
+              className="form-input !py-1.5 !text-sm w-full sm:w-24 text-center min-w-0"
               value={form.plaNum}
               onChange={(e) => set('plaNum', e.target.value)}
               placeholder="—"
             />
           </div>
-          <div className="flex items-center gap-2 min-w-0">
-            <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">תאריך</label>
+          {/* תאריך */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
+            <label className="text-[11px] sm:text-xs font-semibold text-gray-500 whitespace-nowrap">תאריך</label>
             <input
               type="date"
-              className="form-input !py-1.5 !text-sm flex-1 sm:w-36 sm:flex-none min-w-0"
+              className="form-input !py-1.5 !text-sm w-full sm:w-36 min-w-0"
               value={form.docDate}
               onChange={(e) => set('docDate', e.target.value)}
             />
           </div>
-          <div className="col-span-2 sm:col-auto flex items-center gap-2 sm:mr-auto">
-            <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">יחידה</label>
-            <span className="text-xs sm:text-sm font-bold text-navy bg-blue-50 border border-blue-200 rounded px-2 py-1">
+          {/* יחידה */}
+          <div className="col-span-2 sm:col-auto flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 sm:mr-auto min-w-0">
+            <label className="text-[11px] sm:text-xs font-semibold text-gray-500 whitespace-nowrap">שם היחידה</label>
+            <span className="text-xs sm:text-sm font-bold text-navy bg-blue-50 border border-blue-200 rounded px-2 py-1.5 sm:py-1 text-center sm:text-right">
               תחנת בת ים
             </span>
           </div>
