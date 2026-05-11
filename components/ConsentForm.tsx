@@ -4,6 +4,7 @@ import { useRef, useState, useCallback } from 'react';
 import SignaturePad, { type SignaturePadHandle } from './SignaturePad';
 
 const today = () => new Date().toISOString().split('T')[0];
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
 interface FormState {
   plaNum: string;
@@ -141,7 +142,7 @@ export default function ConsentForm() {
 
     let emblemDataUrl = '';
     try {
-      const res = await fetch('/police-emblem.png');
+      const res = await fetch(`${BASE_PATH}/police-emblem.png`);
       const blob = await res.blob();
       emblemDataUrl = await new Promise<string>((resolve) => {
         const reader = new FileReader();
@@ -153,7 +154,7 @@ export default function ConsentForm() {
     const clone = document.documentElement.cloneNode(true) as HTMLElement;
 
     if (emblemDataUrl) {
-      clone.querySelectorAll<HTMLImageElement>('img[src="/police-emblem.png"], img[src$="police-emblem.png"]').forEach((img) => {
+      clone.querySelectorAll<HTMLImageElement>(`img[src="${BASE_PATH}/police-emblem.png"], img[src$="police-emblem.png"]`).forEach((img) => {
         img.src = emblemDataUrl;
       });
     }
@@ -207,7 +208,7 @@ export default function ConsentForm() {
             </div>
           </div>
           <div className="w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center shrink-0">
-            <img src="/police-emblem.png" alt="סמל משטרת ישראל" className="w-full h-full object-contain" />
+            <img src={`${BASE_PATH}/police-emblem.png`} alt="סמל משטרת ישראל" className="w-full h-full object-contain" />
           </div>
         </div>
       </header>
@@ -665,7 +666,7 @@ function PrintSummary({
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
           }}>
-            <img src="/police-emblem.png" alt="סמל משטרת ישראל" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <img src={`${BASE_PATH}/police-emblem.png`} alt="סמל משטרת ישראל" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '8.5pt', color: muted, letterSpacing: '0.2em', fontWeight: 700 }}>
