@@ -135,11 +135,24 @@ export default function ConsentForm() {
     window.print();
   };
 
-  const handleSaveHTML = () => {
+  const handleSaveHTML = async () => {
     const ownerSig  = sigRef.current?.toDataURL()       ?? '';
     const editorSig = sigEditorRef.current?.toDataURL() ?? '';
 
+    let emblemDataUrl = '';
+    try {
+      const res = await fetch('/police-emblem.svg');
+      const svg = await res.text();
+      emblemDataUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    } catch {}
+
     const clone = document.documentElement.cloneNode(true) as HTMLElement;
+
+    if (emblemDataUrl) {
+      clone.querySelectorAll<HTMLImageElement>('img[src="/police-emblem.svg"], img[src$="police-emblem.svg"]').forEach((img) => {
+        img.src = emblemDataUrl;
+      });
+    }
 
     const liveCanvases   = Array.from(document.querySelectorAll('canvas'));
     const clonedCanvases = Array.from(clone.querySelectorAll('canvas'));
@@ -153,7 +166,7 @@ export default function ConsentForm() {
     });
 
     const sigs = [ownerSig, editorSig];
-    clone.querySelectorAll<HTMLImageElement>('.print-summary img').forEach((img, i) => {
+    clone.querySelectorAll<HTMLImageElement>('.print-summary img[alt="חתימה"]').forEach((img, i) => {
       if (sigs[i]) img.src = sigs[i];
     });
 
@@ -189,11 +202,8 @@ export default function ConsentForm() {
               משטרת ישראל | נספח ט׳
             </div>
           </div>
-          <div
-            className="w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xl sm:text-2xl shrink-0"
-            style={{ background: 'rgba(255,255,255,0.15)' }}
-          >
-            ✡
+          <div className="w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center shrink-0">
+            <img src="/police-emblem.svg" alt="סמל משטרת ישראל" className="w-full h-full object-contain" />
           </div>
         </div>
       </header>
@@ -257,7 +267,7 @@ export default function ConsentForm() {
             </Field>
           </FieldRow>
           <div className="mt-3">
-            <Field label="כתובת מגורים">
+            <Field label="כתובת">
               <input
                 className="form-input"
                 value={form.address}
@@ -647,12 +657,11 @@ function PrintSummary({
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, paddingBottom: 8 }}>
           <div style={{
-            width: 52, height: 52, borderRadius: '50%',
-            background: navyDark, color: '#fff',
+            width: 60, height: 60,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '26pt', lineHeight: 1, flexShrink: 0,
+            flexShrink: 0,
           }}>
-            ✡
+            <img src="/police-emblem.svg" alt="סמל משטרת ישראל" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '8.5pt', color: muted, letterSpacing: '0.2em', fontWeight: 700 }}>
@@ -697,7 +706,7 @@ function PrintSummary({
           </div>
         </div>
         <div>
-          <div style={fieldLabel}>כתובת מגורים</div>
+          <div style={fieldLabel}>כתובת</div>
           <div style={fieldValue}>{form.address || ' '}</div>
         </div>
         {form.offenseType && (
